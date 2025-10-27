@@ -4,35 +4,30 @@ pipeline {
     stages {
         stage('Clone Repository') {
             steps {
-                // Pull latest code from your GitHub repo
                 git branch: 'main', url: 'https://github.com/kondekarprajot/7-wonders-webapp.git'
             }
         }
 
         stage('Build WAR using Maven') {
             steps {
-                // Clean and package your Maven project
                 bat 'mvn clean package'
             }
         }
 
         stage('Deploy WAR to Tomcat') {
             steps {
-                // Deploy WAR to Tomcat using Jenkins 'Deploy to container' plugin
-                deploy adapters: [
-                    tomcat9(
-                        credentialsId: 'tomcat-credentials',  // Set this ID in Jenkins credentials
-                        path: '', 
-                        url: 'http://localhost:9090'          // Your Tomcat URL
-                    )
-                ], contextPath: '7wonders', war: '**/target/*.war'
+                withCredentials([usernamePassword(credentialsId: 'tomcat-credentials', usernameVariable: 'TOMCAT_USER', passwordVariable: 'TOMCAT_PASS')]) {
+                    bat """
+                        curl -T target/7-wonders-webapp-1.0.0.war "http://%TOMCAT_USER%:%TOMCAT_PASS%@localhost:9090/manager/text/deploy?path=/7wonders&update=true"
+                    """
+                }
             }
         }
     }
 
     post {
         success {
-            echo '✅ Deployment Successful! Visit http://localhost:9090/7wonders'
+            echo '✅ Build and Deployment Successful!'
         }
         failure {
             echo '❌ Build or Deployment Failed. Check console output for details.'
