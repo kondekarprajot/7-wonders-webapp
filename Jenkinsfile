@@ -4,39 +4,38 @@ pipeline {
     stages {
         stage('Clone Repository') {
             steps {
+                // Pull latest code from your GitHub repo
                 git branch: 'main', url: 'https://github.com/kondekarprajot/7-wonders-webapp.git'
             }
         }
 
-        stage('Build WAR with Maven') {
+        stage('Build WAR using Maven') {
             steps {
+                // Clean and package your Maven project
                 bat 'mvn clean package'
             }
         }
 
-        stage('Build Docker Image') {
+        stage('Deploy WAR to Tomcat') {
             steps {
-                script {
-                    bat 'docker build -t kondekarprajot/7-wonders-webapp:latest .'
-                }
+                // Deploy WAR to Tomcat using Jenkins 'Deploy to container' plugin
+                deploy adapters: [
+                    tomcat9(
+                        credentialsId: 'tomcat-credentials',  // Set this ID in Jenkins credentials
+                        path: '', 
+                        url: 'http://localhost:9090'          // Your Tomcat URL
+                    )
+                ], contextPath: '7wonders', war: '**/target/*.war'
             }
         }
+    }
 
-        stage('Push to Docker Hub') {
-            steps {
-                withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-                    bat '''
-                    echo %DOCKER_PASS% | docker login -u %DOCKER_USER% --password-stdin
-                    docker push kondekarprajot/7-wonders-webapp:latest
-                    '''
-                }
-            }
+    post {
+        success {
+            echo '✅ Deployment Successful! Visit http://localhost:9090/7wonders'
         }
-
-        stage('Deploy to Tomcat') {
-            steps {
-                deploy adapters: [tomcat9(credentialsId: 'tomcat-credentials', path: '', url: 'http://localhost:9090')], contextPath: '7wonders', war: '**/target/*.war'
-            }
+        failure {
+            echo '❌ Build or Deployment Failed. Check console output for details.'
         }
     }
 }
